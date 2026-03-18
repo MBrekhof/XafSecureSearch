@@ -1,11 +1,18 @@
 ﻿using DevExpress.ExpressApp;
+using DevExpress.ExpressApp.DC;
 using DevExpress.ExpressApp.Updating;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using XafSecureSearch.Module.Services;
 
 namespace XafSecureSearch.Module
 {
     // For more typical usage scenarios, be sure to check out https://docs.devexpress.com/eXpressAppFramework/DevExpress.ExpressApp.ModuleBase.
     public sealed class XafSecureSearchModule : ModuleBase
     {
+        private static readonly ILogger _log = Log.ForContext<XafSecureSearchModule>();
+
         public XafSecureSearchModule()
         {
             //
@@ -44,6 +51,27 @@ namespace XafSecureSearch.Module
         }
         public override void Setup(XafApplication application)
         {
+            // Compile search DTOs BEFORE base.Setup() so types are registered
+            // before model generation — matching the working XafSearch pattern.
+            // application.ConnectionString is null at this point (DI/security lifecycle),
+            // so read directly from IConfiguration.
+            var connectionString = "Data Source=(localdb)\\mssqllocaldb;Integrated Security=SSPI;MultipleActiveResultSets=True;Initial Catalog=XafSecureSearch";
+
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                var compiledTypeNames = SearchDtoRegistry.Instance.CompileFromDatabase(connectionString, this);
+
+                foreach (var entry in SearchDtoRegistry.Instance.GetAll())
+                {
+                    var typeInfo = XafTypesInfo.Instance.FindTypeInfo(entry.DtoType);
+                    _log.Information(
+                        "[Module.Setup] Compiled DTO {TypeName}: IsPersistent={IsPersistent}, IsDomainComponent={IsDomainComponent}",
+                        entry.DtoType.FullName,
+                        typeInfo?.IsPersistent,
+                        typeInfo?.IsDomainComponent);
+                }
+            }
+
             base.Setup(application);
         }
 

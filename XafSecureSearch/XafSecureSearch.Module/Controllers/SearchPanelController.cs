@@ -8,8 +8,8 @@ using XafSecureSearch.Module.Services;
 namespace XafSecureSearch.Module.Controllers;
 
 /// <summary>
-/// Fallback runtime search panel controller for entities with a dynamically-registered DTO.
-/// For new search panels, use the generated controllers (SearchControllerBase subclasses) instead.
+/// Runtime search panel controller for entities with a dynamically-compiled DTO.
+/// Activated on any ListView whose entity type has a registered search configuration.
 /// </summary>
 public class SearchPanelController : ViewController<ListView>
 {
@@ -61,6 +61,17 @@ public class SearchPanelController : ViewController<ListView>
         if (_dtoType == null) return;
 
         var os = Application.CreateObjectSpace(_dtoType);
+
+        // The non-persistent ObjectSpace needs an additional persistent ObjectSpace
+        // so that reference/lookup property editors can resolve persistent entities.
+        if (os is CompositeObjectSpace compositeOs)
+        {
+            var entityType = View.ObjectTypeInfo.Type;
+            var persistentOs = Application.CreateObjectSpace(entityType);
+            compositeOs.AdditionalObjectSpaces.Add(persistentOs);
+            os.Disposed += (_, _) => persistentOs.Dispose();
+        }
+
         var searchObj = os.CreateObject(_dtoType);
         var detailView = Application.CreateDetailView(os, searchObj);
         detailView.ViewEditMode = ViewEditMode.Edit;

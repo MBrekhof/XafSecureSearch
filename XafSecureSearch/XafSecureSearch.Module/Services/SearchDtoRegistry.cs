@@ -32,6 +32,16 @@ public class SearchDtoRegistry
         _log.Information("CompileFromDatabase: connectionString present = {Present}", !string.IsNullOrWhiteSpace(connectionString));
         if (string.IsNullOrWhiteSpace(connectionString)) return compiledTypeNames;
 
+        // Only compile once — subsequent Module.Setup() calls (per-session in Blazor) must reuse existing types.
+        lock (_lock)
+        {
+            if (_entries.Count > 0)
+            {
+                _log.Information("CompileFromDatabase: already compiled {Count} type(s), skipping", _entries.Count);
+                return _entries.Values.Select(e => e.DtoType.FullName).ToHashSet();
+            }
+        }
+
         try
         {
             List<SearchConfiguration> configs;

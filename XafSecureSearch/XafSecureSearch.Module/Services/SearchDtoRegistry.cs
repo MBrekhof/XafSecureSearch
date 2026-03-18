@@ -203,19 +203,6 @@ public class SearchDtoRegistry
         return result;
     }
 
-    public void Unregister(int configId, ModuleBase module)
-    {
-        lock (_lock)
-        {
-            if (_entries.TryGetValue(configId, out var entry))
-            {
-                module.AdditionalExportedTypes.Remove(entry.DtoType);
-                _entityTypeIndex.Remove(entry.TargetEntityType);
-                _entries.Remove(configId);
-            }
-        }
-    }
-
     public Type GetDtoType(string targetEntityTypeName)
     {
         lock (_lock)
@@ -228,15 +215,6 @@ public class SearchDtoRegistry
             return null;
         }
     }
-
-    public string GetSource(int configId)
-    {
-        lock (_lock)
-        {
-            return _entries.TryGetValue(configId, out var entry) ? entry.Source : null;
-        }
-    }
-
 
     public bool HasSearchPanel(string targetEntityTypeName)
     {

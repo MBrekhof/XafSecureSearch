@@ -236,10 +236,6 @@ public class SearchDtoRegistry
         }
     }
 
-    public string GetExportSource(SearchConfiguration config)
-    {
-        return _compiler.GenerateExportSource(config);
-    }
 
     public bool HasSearchPanel(string targetEntityTypeName)
     {

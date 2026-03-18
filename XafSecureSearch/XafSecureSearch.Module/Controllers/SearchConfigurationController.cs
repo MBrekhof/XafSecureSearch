@@ -9,7 +9,7 @@ using XafSecureSearch.Module.Services;
 namespace XafSecureSearch.Module.Controllers;
 
 /// <summary>
-/// DetailView controller: Populate, Generate Source, Export actions.
+/// DetailView controller: Populate, Compile, Export actions.
 /// </summary>
 public class SearchConfigurationController : ObjectViewController<DetailView, SearchConfiguration>
 {
@@ -30,9 +30,9 @@ public class SearchConfigurationController : ObjectViewController<DetailView, Se
 
         compileAction = new SimpleAction(this, "CompileAndActivate", PredefinedCategory.View)
         {
-            Caption = "Generate Source",
+            Caption = "Compile & Activate",
             ImageName = "Action_Grant",
-            ToolTip = "Generate the search panel C# source files (rebuild required)",
+            ToolTip = "Compile the search panel DTO (active after app restart)",
             PaintStyle = DevExpress.ExpressApp.Templates.ActionItemPaintStyle.CaptionAndImage
         };
         compileAction.Execute += CompileAction_Execute;
@@ -107,7 +107,7 @@ public class SearchConfigurationController : ObjectViewController<DetailView, Se
         if (string.IsNullOrWhiteSpace(config.TargetEntityType) || config.Fields.Count == 0)
         {
             Application.ShowViewStrategy.ShowMessage(
-                "Configure target entity and fields before generating source.",
+                "Configure target entity and fields before compiling.",
                 InformationType.Warning, 3000, InformationPosition.Top);
             return;
         }
@@ -117,38 +117,30 @@ public class SearchConfigurationController : ObjectViewController<DetailView, Se
             ObjectSpace.CommitChanges();
         }
 
-        var moduleDir = FindModuleProjectDir();
-        if (moduleDir == null)
+        var module = Application.Modules
+            .OfType<XafSecureSearch.Module.XafSecureSearchModule>()
+            .FirstOrDefault();
+
+        if (module == null)
         {
             Application.ShowViewStrategy.ShowMessage(
-                "Cannot locate XafSecureSearch.Module project directory.",
+                "Could not find XafSecureSearchModule.",
                 InformationType.Error, 5000, InformationPosition.Top);
             return;
         }
 
-        try
+        var result = SearchDtoRegistry.Instance.CompileAndRegister(config, module);
+
+        if (result.Success)
         {
-            var compiler = new SearchDtoCompiler();
-            var targetShortName = config.TargetEntityType.Split('.').Last();
-
-            var dtoDir = Path.Combine(moduleDir, "BusinessObjects", "Generated");
-            Directory.CreateDirectory(dtoDir);
-            var dtoPath = Path.Combine(dtoDir, $"{targetShortName}SearchDTO.cs");
-            File.WriteAllText(dtoPath, compiler.GenerateExportSource(config));
-
-            var controllerDir = Path.Combine(moduleDir, "Controllers", "Generated");
-            Directory.CreateDirectory(controllerDir);
-            var controllerPath = Path.Combine(controllerDir, $"{targetShortName}SearchController.cs");
-            File.WriteAllText(controllerPath, compiler.GenerateControllerSource(config));
-
             Application.ShowViewStrategy.ShowMessage(
-                $"Generated {config.Name} files. Rebuild the project to activate.",
+                $"Compiled {result.DtoType.Name}. Restart the app to activate.",
                 InformationType.Success, 5000, InformationPosition.Top);
         }
-        catch (Exception ex)
+        else
         {
             Application.ShowViewStrategy.ShowMessage(
-                $"File generation failed: {ex.Message}",
+                $"Compilation failed: {string.Join("; ", result.Errors)}",
                 InformationType.Error, 10000, InformationPosition.Top);
         }
     }
@@ -157,7 +149,7 @@ public class SearchConfigurationController : ObjectViewController<DetailView, Se
     {
         var config = ViewCurrentObject;
         var compiler = new SearchDtoCompiler();
-        var source = compiler.GenerateExportSource(config);
+        var source = compiler.GenerateSource(config);
 
         if (string.IsNullOrWhiteSpace(source))
         {
@@ -178,40 +170,10 @@ public class SearchConfigurationController : ObjectViewController<DetailView, Se
         e.ShowViewParameters.CreatedView = detailView;
         e.ShowViewParameters.TargetWindow = TargetWindow.NewModalWindow;
     }
-
-    /// <summary>
-    /// Walks up from AppDomain.CurrentDomain.BaseDirectory looking for XafSecureSearch.Module.csproj.
-    /// Returns the directory containing the .csproj, or null if not found.
-    /// </summary>
-    internal static string FindModuleProjectDir()
-    {
-        // Walk up from bin output directory, checking each ancestor and its children
-        var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
-        while (dir != null)
-        {
-            // Check this directory itself
-            if (File.Exists(Path.Combine(dir.FullName, "XafSecureSearch.Module.csproj")))
-                return dir.FullName;
-
-            // Check immediate subdirectories (Module project is sibling to Blazor.Server)
-            try
-            {
-                foreach (var sub in dir.GetDirectories())
-                {
-                    if (File.Exists(Path.Combine(sub.FullName, "XafSecureSearch.Module.csproj")))
-                        return sub.FullName;
-                }
-            }
-            catch { }
-
-            dir = dir.Parent;
-        }
-        return null;
-    }
 }
 
 /// <summary>
-/// ListView controller: "Generate All" action to batch-generate source for all active configurations.
+/// ListView controller: "Compile All" action to batch-compile all active configurations.
 /// </summary>
 public class SearchConfigurationListController : ObjectViewController<ListView, SearchConfiguration>
 {
@@ -221,9 +183,9 @@ public class SearchConfigurationListController : ObjectViewController<ListView, 
     {
         compileAllAction = new SimpleAction(this, "CompileAllSearchPanels", PredefinedCategory.View)
         {
-            Caption = "Generate All",
+            Caption = "Compile All",
             ImageName = "Action_Grant",
-            ToolTip = "Generate the search panel C# source files for all active configurations (rebuild required)",
+            ToolTip = "Compile all active search configurations (restart required to activate)",
             PaintStyle = DevExpress.ExpressApp.Templates.ActionItemPaintStyle.CaptionAndImage,
             SelectionDependencyType = SelectionDependencyType.Independent
         };
@@ -232,11 +194,14 @@ public class SearchConfigurationListController : ObjectViewController<ListView, 
 
     private void CompileAllAction_Execute(object sender, SimpleActionExecuteEventArgs e)
     {
-        var moduleDir = SearchConfigurationController.FindModuleProjectDir();
-        if (moduleDir == null)
+        var module = Application.Modules
+            .OfType<XafSecureSearch.Module.XafSecureSearchModule>()
+            .FirstOrDefault();
+
+        if (module == null)
         {
             Application.ShowViewStrategy.ShowMessage(
-                "Cannot locate XafSecureSearch.Module project directory.",
+                "Could not find XafSecureSearchModule.",
                 InformationType.Error, 5000, InformationPosition.Top);
             return;
         }
@@ -245,39 +210,20 @@ public class SearchConfigurationListController : ObjectViewController<ListView, 
             .Where(c => c.IsActive && c.TargetEntityType != null)
             .ToList();
 
-        int success = 0;
-        int failed = 0;
-        var compiler = new SearchDtoCompiler();
+        int success = 0, failed = 0;
 
         foreach (var config in configs)
         {
             if (config.Fields.Count == 0) continue;
 
-            try
-            {
-                var targetShortName = config.TargetEntityType.Split('.').Last();
-
-                var dtoDir = Path.Combine(moduleDir, "BusinessObjects", "Generated");
-                Directory.CreateDirectory(dtoDir);
-                File.WriteAllText(
-                    Path.Combine(dtoDir, $"{targetShortName}SearchDTO.cs"),
-                    compiler.GenerateExportSource(config));
-
-                var controllerDir = Path.Combine(moduleDir, "Controllers", "Generated");
-                Directory.CreateDirectory(controllerDir);
-                File.WriteAllText(
-                    Path.Combine(controllerDir, $"{targetShortName}SearchController.cs"),
-                    compiler.GenerateControllerSource(config));
-
+            var result = SearchDtoRegistry.Instance.CompileAndRegister(config, module);
+            if (result.Success)
                 success++;
-            }
-            catch
-            {
+            else
                 failed++;
-            }
         }
 
-        var message = $"Generated {success} search panel(s). Rebuild the project to activate.";
+        var message = $"Compiled {success} search panel(s). Restart the app to activate.";
         if (failed > 0)
             message += $" {failed} failed.";
 

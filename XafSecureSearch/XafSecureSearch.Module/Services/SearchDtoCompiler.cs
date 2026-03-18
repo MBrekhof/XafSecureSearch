@@ -63,7 +63,7 @@ public class SearchDtoCompiler
         var targetShortName = config.TargetEntityType.Split('.').Last();
         var dtoName = $"{targetShortName}SearchDTO";
         var fields = config.Fields
-            .Where(f => !string.IsNullOrWhiteSpace(f.PropertyName) && !string.IsNullOrWhiteSpace(f.PropertyTypeName))
+            .Where(f => f.IsIncluded && !string.IsNullOrWhiteSpace(f.PropertyName) && !string.IsNullOrWhiteSpace(f.PropertyTypeName))
             .OrderBy(f => f.SortOrder)
             .ToList();
 

@@ -12,6 +12,10 @@ public class SearchField : BaseObjectInt
     public virtual int? SearchConfigurationId { get; set; }
     public virtual SearchConfiguration SearchConfiguration { get; set; }
 
+    [XafDisplayName("Include")]
+    [ToolTip("Include this field in the search panel")]
+    public virtual bool IsIncluded { get; set; }
+
     [XafDisplayName("Property Name")]
     [ImmediatePostData]
     public virtual string PropertyName { get; set; }

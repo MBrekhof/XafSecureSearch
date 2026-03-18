@@ -52,10 +52,11 @@ namespace XafSecureSearch.Module
         public override void Setup(XafApplication application)
         {
             // Compile search DTOs BEFORE base.Setup() so types are registered
-            // before model generation — matching the working XafSearch pattern.
-            // application.ConnectionString is null at this point (DI/security lifecycle),
-            // so read directly from IConfiguration.
-            var connectionString = "Data Source=(localdb)\\mssqllocaldb;Integrated Security=SSPI;MultipleActiveResultSets=True;Initial Catalog=XafSecureSearch";
+            // before model generation. application.ConnectionString is null at this point
+            // (DI/security lifecycle), so read from IConfiguration via ServiceProvider.
+            var connectionString = application.ServiceProvider
+                ?.GetService<IConfiguration>()
+                ?.GetConnectionString("ConnectionString");
 
             if (!string.IsNullOrWhiteSpace(connectionString))
             {

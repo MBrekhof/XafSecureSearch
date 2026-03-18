@@ -1,5 +1,7 @@
 # XafSecureSearch
 
+![Architecture](architecture.png)
+
 **Database-driven, runtime-compiled advanced search panels for DevExpress XAF Blazor Server applications.**
 
 XafSecureSearch lets administrators define search panel configurations through the XAF UI — selecting which entity to search, which properties to expose, and how each property should be filtered. At application startup, the system compiles these configurations into .NET types using Roslyn, registers them as XAF `[DomainComponent]` non-persistent objects, and presents them as popup search forms on the corresponding ListViews. Users fill in the search criteria and click OK; the system builds a `CriteriaOperator` from the filled properties and applies it to the ListView's collection source.

@@ -8,6 +8,17 @@
   </Options>
   <Views>
     <ListView Id="ApplicationUser_ListView" Caption="Users" />
+    <ListView Id="SearchField_ListView">
+      <Columns>
+        <ColumnInfo Id="IsIncluded" Index="0" Width="60" />
+        <ColumnInfo Id="PropertyName" Index="1" />
+        <ColumnInfo Id="DisplayName" Index="2" />
+        <ColumnInfo Id="PropertyTypeName" Index="3" />
+        <ColumnInfo Id="UseExactMatch" Index="4" />
+        <ColumnInfo Id="UseRangeFilter" Index="5" />
+        <ColumnInfo Id="SortOrder" Index="6" />
+      </Columns>
+    </ListView>
     <DetailView Id="ReportDataV2_DetailView">
       <Layout>
         <LayoutGroup Id="Main" >

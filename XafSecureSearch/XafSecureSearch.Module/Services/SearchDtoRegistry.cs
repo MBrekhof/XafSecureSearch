@@ -132,7 +132,7 @@ public class SearchDtoRegistry
         using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = @"SELECT ID, SearchConfigurationId, PropertyName, PropertyTypeName, DisplayName,
-                                       UseExactMatch, UseRangeFilter, SortOrder, IsReferenceProperty, ReferencedTypeName
+                                       UseExactMatch, UseRangeFilter, SortOrder, IsReferenceProperty, ReferencedTypeName, IsIncluded
                                 FROM SearchFields
                                 WHERE SearchConfigurationId IN (SELECT ID FROM SearchConfigurations WHERE IsActive = 1 AND TargetEntityType IS NOT NULL)
                                 ORDER BY SortOrder";
@@ -153,7 +153,8 @@ public class SearchDtoRegistry
                     UseRangeFilter = reader.GetBoolean(6),
                     SortOrder = reader.GetInt32(7),
                     IsReferenceProperty = reader.GetBoolean(8),
-                    ReferencedTypeName = reader.IsDBNull(9) ? null : reader.GetString(9)
+                    ReferencedTypeName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    IsIncluded = reader.GetBoolean(10)
                 };
                 config.Fields.Add(field);
             }

@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="EasyTest" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Project Path="XafSecureSearch/XafSecureSearch.Blazor.Server/XafSecureSearch.Blazor.Server.csproj" />
+  <Project Path="XafSecureSearch/XafSecureSearch.Module/XafSecureSearch.Module.csproj" />
+</Solution>
